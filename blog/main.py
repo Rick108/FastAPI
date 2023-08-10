@@ -3,6 +3,7 @@ from . import schemas, models
 from .database import engine, SessionLocal
 from sqlalchemy.orm import Session
 from typing import List
+from . hashing import Hash
 
 myApp = FastAPI()
 
@@ -20,10 +21,11 @@ def get_db():
 # store data to DB
 # session is not a pydantic so use Depends(get_db)
 # set HTML status code for created using FastAPI status module
-@myApp.post('/blog', status_code=status.HTTP_201_CREATED)
+# we can assign tags to define the method, only for documentation.
+@myApp.post('/blog', status_code=status.HTTP_201_CREATED, tags=['blogs'])
 def create(request: schemas.Blog, db: Session = Depends(get_db)):
     try:
-        new_blog = models.Blog(title=request.title, body=request.body)
+        new_blog = models.Blog(title=request.title, body=request.body, user_id=1)
         db.add(new_blog)
         db.commit()
         db.refresh(new_blog)
@@ -35,7 +37,7 @@ def create(request: schemas.Blog, db: Session = Depends(get_db)):
 # retrieve all blogs from DB
 # we need to declare the request_model as list of
 # schema.blog as we need a list of entries
-@myApp.get('/blog', response_model=List[schemas.Blog])
+@myApp.get('/blog', response_model=List[schemas.Blog], tags=['blogs'])
 def all(db: Session = Depends(get_db)):
     blogs = db.query(models.Blog).all()
     return blogs
@@ -43,9 +45,11 @@ def all(db: Session = Depends(get_db)):
 
 # retrieve blog by id and giving the first match only
 # default status code is 200 but we can override it based on situation
-# request_model is a pydantic model (schemas), which only shows the values for the schema
-# the ShowBlog schema is defined in schemas
-@myApp.get('/blog/{id}', status_code=200, response_model=schemas.ShowBlog)
+# request_model is a pydantic model (schemas), which only returns the values for the schema
+# the ShowBlog schema is defined in schemas. Response is what we get
+# after doing a request, response_model defines what to return in Response.
+# It is for any kind of requests(get, post...).
+@myApp.get('/blog/{id}', status_code=200, response_model=schemas.ShowBlog, tags=['blogs'])
 def show(id, response: Response, db: Session = Depends(get_db)):
     blog = db.query(models.Blog).filter(models.Blog.id == id).first()
     if not blog:
@@ -58,7 +62,7 @@ def show(id, response: Response, db: Session = Depends(get_db)):
 
 
 # Delete a blog
-@myApp.delete('/blog/{id}', status_code=status.HTTP_204_NO_CONTENT)
+@myApp.delete('/blog/{id}', status_code=status.HTTP_204_NO_CONTENT, tags=['blogs'])
 def destroy(id, db: Session = Depends(get_db)):
     # loading the blog and deleting
     blog = db.query(models.Blog).filter(models.Blog.id == id)
@@ -70,7 +74,7 @@ def destroy(id, db: Session = Depends(get_db)):
 
 
 # update a blog, we take the request to get new entry
-@myApp.put('/blog/{id}', status_code=status.HTTP_202_ACCEPTED)
+@myApp.put('/blog/{id}', status_code=status.HTTP_202_ACCEPTED, tags=['blogs'])
 def update(id, request: schemas.Blog, db: Session = Depends(get_db)):
     blog = db.query(models.Blog).filter(models.Blog.id == id)
     if not blog.first():
@@ -81,13 +85,28 @@ def update(id, request: schemas.Blog, db: Session = Depends(get_db)):
 
 
 # Create user, using post request
-@myApp.post('/user')
+@myApp.post('/user', response_model= schemas.ShowUser, tags=['users'])
 def create_user(request: schemas.User, db: Session = Depends(get_db)):
     try:
-        new_user = models.User(name=request.name, email=request.email, password=request.password)
+        # encrypting the password using hashing.py file
+        new_user = models.User(name=request.name, email=request.email, password=Hash.bcrypt(request.password))
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
         return new_user
     except Exception as e:
         return e
+
+
+# get user
+@myApp.get('/user/{id}', response_model= schemas.ShowUser, tags=['users'])
+def get_user(id:int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id==id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'User with id {id} not found')
+    return user
+
+
+# Relationship should be created as every blog should
+# belong to an owner(user), so we need to establish a relationship
+# b/w blogs and users. It is implemented in models file.
