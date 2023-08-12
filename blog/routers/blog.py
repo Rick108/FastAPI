@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status, HTTPException
 import schemas, database, oauth2
 from typing import List
 from sqlalchemy.orm import Session
-from . repository import blog
+from repository import blog
 
 router = APIRouter(
     prefix='/blog',
