@@ -32,7 +32,7 @@ def create(request: schemas.Blog, db: Session = Depends(database.get_db)):
 
 
 # retrieve blog by id and giving the first match only
-# default status code is 200 but we can override it based on situation
+# default status code is 200, but we can override it based on situation
 # request_model is a pydantic model (schemas), which only returns the values for the schema
 # the ShowBlog schema is defined in schemas. Response is what we get
 # after doing a request, response_model defines what to return in Response.
