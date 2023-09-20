@@ -2,6 +2,9 @@ from pydantic import BaseModel
 from typing import List
 
 
+# pydantic models
+
+
 # this schema is used for post method
 class BlogBase(BaseModel):
     title: str
